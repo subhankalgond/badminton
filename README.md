@@ -212,12 +212,37 @@ the screenshots. That is a rewrite of `src/db.js` and the upload route.
 
 ### Hosts that can
 
-* A host with a persistent disk, such as Railway, Render, Fly.io or any VPS. A
-  `Dockerfile` is included, which builds on Node 24 and runs as a non root
-  user. Mount the disk at `/data`, or set `DATA_DIR` and `UPLOAD_DIR` to
-  wherever your platform puts it, for example `/var/data` on Render.
-* A computer you control, reached over your own network, or through a tunnel
-  or reverse proxy when players must register from outside it.
+A host with a persistent disk: Railway, Render, Fly.io or any VPS. A
+`Dockerfile` is included, which builds on Node 24 and runs as a non root user.
+
+#### Render, using the included `render.yaml`
+
+1. In Render, choose **New > Blueprint** and pick this repository.
+2. Render reads `render.yaml`, then asks for `ADMIN_PASSWORD`. Type the
+   organizer password there. It is never written into the repository.
+3. Create the Blueprint. Render builds the image, mounts a 1 GB disk at
+   `/data` and gives you an `onrender.com` address over HTTPS.
+
+The disk is why that plan is not the free one: Render attaches persistent disks
+only to paid services. It also takes a snapshot of the disk every 24 hours.
+
+#### Railway
+
+1. **New Project > Deploy from GitHub repo**, and choose this repository.
+   Railway finds the `Dockerfile` on its own.
+2. Add a volume to the service and set its mount path to `/data`.
+3. Add the variables `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `DATA_DIR` (`/data`)
+   and `UPLOAD_DIR` (`/data/uploads`).
+4. Keep it at one replica. Two replicas would each have their own copy of the
+   database.
+
+Railway includes volume storage on its trial and Hobby plans.
+
+#### Your own computer
+
+Run `npm start` and reach it over your own network, or through a tunnel or a
+reverse proxy when players must register from outside it. Free, and the data
+stays on your disk, but the site is only up while the computer is.
 
 ### Checklist
 
@@ -225,7 +250,8 @@ the screenshots. That is a rewrite of `src/db.js` and the upload route.
 * Put the site behind HTTPS. A reverse proxy such as nginx or Caddy is enough.
   The session cookie is marked `Secure` automatically over HTTPS.
 * Run exactly one instance. The database is a single file, so two instances
-  writing to it from different machines is not supported.
+  writing to it from different machines is not supported, and most platforms
+  refuse to attach one disk to two instances for that reason.
 * Keep `DATA_DIR` and `UPLOAD_DIR` on the same disk, and back them up together.
 * Keep `uploads/` and `data/` outside the web root. They already are: Express
   serves only the `public` folder.
