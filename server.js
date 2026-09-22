@@ -2,7 +2,7 @@ import os from 'node:os';
 import path from 'node:path';
 import express from 'express';
 import multer from 'multer';
-import { HOST, PORT, PUBLIC_DIR, findQrImage } from './src/config.js';
+import { DATA_DIR, HOST, PORT, PUBLIC_DIR, UPLOAD_DIR, findQrImage } from './src/config.js';
 import { ensureAdminAccount } from './src/auth.js';
 import { closeDatabase } from './src/db.js';
 import publicRoutes from './src/routes/public.js';
@@ -111,6 +111,10 @@ const server = app.listen(PORT, HOST, () => {
   }
   console.log('Payment QR code:   ' + (qr ? qr + ' (found)' : 'add your image to public/qr/upi-qr.png'));
   console.log('Organizer login:   ' + organizer.username + ' (password from .env)');
+  // Printed so a hosted deploy can be checked at a glance: both folders must
+  // point inside the mounted disk, or registrations are lost on a restart.
+  console.log('Data folder:       ' + DATA_DIR);
+  console.log('Uploads folder:    ' + UPLOAD_DIR);
   console.log('');
 });
 
