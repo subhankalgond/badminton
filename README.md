@@ -97,7 +97,8 @@ It is used at 50px tall in the header of every page, and 42px on phones.
 
 ## How the flow works
 
-1. The visitor reads the same-college rule and fills in the team details.
+1. The visitor reads the same-college rule and fills in the team details:
+   team name, and for each player a full name, email, mobile number and college.
 2. Both college names are compared after trimming, collapsing repeated spaces
    and lowercasing. Different colleges block the submit on the page and again
    on the server.
@@ -115,6 +116,10 @@ It is used at 50px tall in the header of every page, and 42px on phones.
   message shown to both players is:
   "Both players must be from the same college. Players from different colleges
   cannot register as a team."
+* **Mobile numbers.** Both players must give a mobile number. Spaces, dashes
+  and a country code are stripped, so `+91 98765 43210` is stored as
+  `9876543210`, and a number that is not ten digits is refused. The two players
+  cannot share one number.
 * **Fixed entry fee.** Every registration is stored with `payment_amount = 300`.
   An amount sent by the browser is ignored.
 * **Duplicates.** A team name, a player email address, or the same pair of

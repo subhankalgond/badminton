@@ -29,9 +29,11 @@ const FIELD_NAMES = [
   'team_name',
   'player1_name',
   'player1_email',
+  'player1_mobile',
   'player1_college',
   'player2_name',
   'player2_email',
+  'player2_mobile',
   'player2_college',
 ];
 

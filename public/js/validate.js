@@ -20,6 +20,8 @@ export const COLLEGE_MISMATCH_MESSAGE =
   'Both players must be from the same college. ' +
   'Players from different colleges cannot register as a team.';
 
+export const MOBILE_DIGITS = 10;
+
 /* Characters that are never valid in a team name, a person name or a college
    name. Control characters are included so that newlines and tabs cannot be
    smuggled into stored values. */
@@ -52,6 +54,19 @@ export function sameCollege(a, b) {
   const left = normalizeKey(a);
   const right = normalizeKey(b);
   return left.length > 0 && left === right;
+}
+
+/**
+ * Reduce a mobile number to its ten digits.
+ * Spaces, dashes, brackets and a country code are dropped, so
+ * "+91 98765 43210", "098765-43210" and "9876543210" all become "9876543210".
+ * Returns an empty string when the result is not ten digits.
+ */
+export function normalizeMobile(value) {
+  let digits = String(value === null || value === undefined ? '' : value).replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('91')) digits = digits.slice(2);
+  else if (digits.length === 11 && digits.startsWith('0')) digits = digits.slice(1);
+  return digits.length === MOBILE_DIGITS ? digits : '';
 }
 
 export function formatBytes(bytes) {
@@ -92,9 +107,11 @@ export function validateRegistration(input) {
     player1_name: read('player1_name'),
     player1_email: read('player1_email').toLowerCase(),
     player1_college: read('player1_college'),
+    player1_mobile: '',
     player2_name: read('player2_name'),
     player2_email: read('player2_email').toLowerCase(),
     player2_college: read('player2_college'),
+    player2_mobile: '',
   };
 
   const errors = {};
@@ -130,6 +147,32 @@ export function validateRegistration(input) {
     } else if (!EMAIL_PATTERN.test(value)) {
       errors[field] = 'Enter a valid email address for ' + who + '.';
     }
+  }
+
+  const mobileFields = [
+    ['player1_mobile', 'Player 1'],
+    ['player2_mobile', 'Player 2'],
+  ];
+  for (const [field, who] of mobileFields) {
+    const raw = read(field);
+    if (!raw) {
+      errors[field] = who + ' mobile number is required.';
+      continue;
+    }
+    const digits = normalizeMobile(raw);
+    if (!digits) {
+      errors[field] = who + ' mobile number must be ' + MOBILE_DIGITS + ' digits.';
+      continue;
+    }
+    values[field] = digits;
+  }
+
+  if (
+    !errors.player1_mobile &&
+    !errors.player2_mobile &&
+    values.player1_mobile === values.player2_mobile
+  ) {
+    errors.player2_mobile = 'Player 1 and Player 2 cannot use the same mobile number.';
   }
 
   const collegeFields = [

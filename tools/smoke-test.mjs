@@ -45,9 +45,13 @@ function teamForm(overrides = {}, file) {
     player1_name: 'Rahul Sharma',
     player1_email: 'rahul.sharma@example.com',
     player1_college: 'Anjuman Institute of Technology and Management',
+    // Written the way people actually type a number, to prove it is stored as
+    // ten plain digits.
+    player1_mobile: '+91 98765 43210',
     player2_name: 'Imran Khan',
     player2_email: 'imran.khan@example.com',
     player2_college: 'anjuman  institute of technology and management',
+    player2_mobile: '98123 45670',
     ...overrides,
   };
 
@@ -228,6 +232,49 @@ async function run() {
         player2_college: 'Government Engineering College',
       })
     );
+    const shortMobile = await submit(
+      teamForm({
+        team_name: 'Short Number Team',
+        player1_email: 'p1m@example.com',
+        player2_email: 'p2m@example.com',
+        player1_mobile: '98765',
+      })
+    );
+    check('a mobile number that is too short is rejected', shortMobile.status === 400);
+    check(
+      'the mobile error names the ten digit rule',
+      shortMobile.data.field_errors &&
+        /10 digits/.test(shortMobile.data.field_errors.player1_mobile || ''),
+      JSON.stringify(shortMobile.data.field_errors)
+    );
+
+    const missingMobile = await submit(
+      teamForm({
+        team_name: 'No Number Team',
+        player1_email: 'p1n@example.com',
+        player2_email: 'p2n@example.com',
+        player1_mobile: '',
+      })
+    );
+    check('a missing mobile number is rejected', missingMobile.status === 400);
+
+    const sameMobile = await submit(
+      teamForm({
+        team_name: 'One Phone Team',
+        player1_email: 'p1s@example.com',
+        player2_email: 'p2s@example.com',
+        player1_mobile: '9876543210',
+        player2_mobile: '9876543210',
+      })
+    );
+    check('both players cannot share one mobile number', sameMobile.status === 400);
+    check(
+      'the shared mobile error is shown on player 2',
+      sameMobile.data.field_errors &&
+        /same mobile number/.test(sameMobile.data.field_errors.player2_mobile || ''),
+      JSON.stringify(sameMobile.data.field_errors)
+    );
+
     check('different colleges are rejected', differentCollege.status === 400);
     check(
       'different colleges return the required message',
@@ -380,6 +427,18 @@ async function run() {
     const feeCheck = all.data.registrations.find((item) => item.team_name === 'Fee Check XI');
     check('client supplied amount did not change the stored fee', feeCheck && feeCheck.payment_amount === 300);
     check('normalised helper columns are not exposed', feeCheck && feeCheck.team_name_norm === undefined);
+
+    const mobileCheck = all.data.registrations.find((item) => item.team_name === 'Court Kings');
+    check(
+      'a country code and spaces are stripped from the mobile number',
+      mobileCheck && mobileCheck.player1_mobile === '9876543210',
+      JSON.stringify(mobileCheck && mobileCheck.player1_mobile)
+    );
+    check(
+      'the second player mobile number is stored too',
+      mobileCheck && mobileCheck.player2_mobile === '9812345670',
+      JSON.stringify(mobileCheck && mobileCheck.player2_mobile)
+    );
 
     const search = await adminJson('/api/admin/registrations?status=ALL&q=imran');
     check('search matches a player name', search.data.registrations.length === 1, String(search.data.registrations.length));

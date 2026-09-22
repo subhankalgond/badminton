@@ -6,6 +6,8 @@ const loginError = document.getElementById('login-error');
 const loginButton = document.getElementById('login-button');
 const dashboard = document.getElementById('dashboard');
 const adminAlert = document.getElementById('admin-alert');
+const adminAlertText = document.getElementById('admin-alert-text');
+const adminAlertDismiss = document.getElementById('admin-alert-dismiss');
 const signOutButton = document.getElementById('sign-out');
 const signedInAs = document.getElementById('signed-in-as');
 
@@ -125,17 +127,29 @@ function paymentChip(status) {
   return chip;
 }
 
+/** Clear the result message. Called by its own timer, by the Dismiss button
+    and by every action the organizer takes next, so a result never stays on
+    screen after the work it describes is finished. */
+function hideAdminAlert() {
+  if (alertTimer) {
+    clearTimeout(alertTimer);
+    alertTimer = null;
+  }
+  adminAlert.hidden = true;
+}
+
 function showAdminAlert(message, kind) {
-  adminAlert.textContent = message;
+  if (alertTimer) clearTimeout(alertTimer);
+  alertTimer = null;
+  adminAlertText.textContent = message;
   adminAlert.className = 'notice ' + (kind === 'success' ? 'notice--success' : 'notice--error');
   adminAlert.hidden = !message;
-  if (alertTimer) clearTimeout(alertTimer);
   if (message) {
-    alertTimer = setTimeout(() => {
-      adminAlert.hidden = true;
-    }, 8000);
+    alertTimer = setTimeout(hideAdminAlert, 5000);
   }
 }
+
+adminAlertDismiss.addEventListener('click', hideAdminAlert);
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -166,6 +180,7 @@ async function api(path, options = {}) {
 /* ------------------------------------------------------------------- modals */
 
 function openModal(modal) {
+  hideAdminAlert();
   lastFocused = document.activeElement;
   modal.hidden = false;
   document.body.style.overflow = 'hidden';
@@ -209,12 +224,19 @@ document.addEventListener('keydown', (event) => {
 
 /* ---------------------------------------------------------------- rendering */
 
-/** One player as a small stack: label, name, then email and college. */
-function buildPlayerBlock(title, name, email, college) {
+/** One player as a small stack: label, name, then email, mobile and college. */
+function buildPlayerBlock(title, name, email, mobile, college) {
   const block = el('div', 'person');
   block.append(el('p', 'person__title', title));
   block.append(el('p', 'person__name', name));
   block.append(el('p', 'person__line', email));
+  if (mobile) {
+    // A tap to call the player from a phone, which is how the organizer uses
+    // this during the event.
+    const phone = el('a', 'person__line person__line--phone', 'Mobile ' + mobile);
+    phone.href = 'tel:' + mobile;
+    block.append(phone);
+  }
   block.append(el('p', 'person__line', college));
   return block;
 }
@@ -259,6 +281,7 @@ function buildRegistrationCard(registration) {
       'Player 1',
       registration.player1_name,
       registration.player1_email,
+      registration.player1_mobile,
       registration.player1_college
     )
   );
@@ -267,6 +290,7 @@ function buildRegistrationCard(registration) {
       'Player 2',
       registration.player2_name,
       registration.player2_email,
+      registration.player2_mobile,
       registration.player2_college
     )
   );
@@ -338,6 +362,7 @@ function buildAcceptedCard(registration) {
       'Player 1',
       registration.player1_name,
       registration.player1_email,
+      registration.player1_mobile,
       registration.player1_college
     )
   );
@@ -346,6 +371,7 @@ function buildAcceptedCard(registration) {
       'Player 2',
       registration.player2_name,
       registration.player2_email,
+      registration.player2_mobile,
       registration.player2_college
     )
   );
@@ -564,6 +590,7 @@ confirmRejectButton.addEventListener('click', async () => {
 /* ----------------------------------------------------------- view switch */
 
 function showView(name) {
+  hideAdminAlert();
   activeView = viewPanels[name] ? name : 'queue';
   for (const [key, panel] of Object.entries(viewPanels)) {
     panel.hidden = key !== activeView;
@@ -582,6 +609,7 @@ if (adminNav) {
 /* ------------------------------------------------------ search and filters */
 
 searchInput.addEventListener('input', () => {
+  hideAdminAlert();
   searchQuery = searchInput.value.trim();
   if (searchTimer) clearTimeout(searchTimer);
   searchTimer = setTimeout(() => {
@@ -591,6 +619,7 @@ searchInput.addEventListener('input', () => {
 
 for (const button of filterButtons) {
   button.addEventListener('click', () => {
+    hideAdminAlert();
     statusFilter = button.dataset.status || 'ALL';
     for (const other of filterButtons) {
       other.setAttribute('aria-pressed', String(other === button));
@@ -656,6 +685,7 @@ const refreshButton = document.getElementById('refresh-button');
 const refreshLabel = document.getElementById('refresh-label');
 
 refreshButton.addEventListener('click', async () => {
+  hideAdminAlert();
   refreshButton.disabled = true;
   refreshLabel.textContent = 'Refreshing';
   try {

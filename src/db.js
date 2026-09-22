@@ -46,12 +46,14 @@ db.exec(`
     player1_email_norm TEXT NOT NULL,
     player1_college TEXT NOT NULL,
     player1_college_norm TEXT NOT NULL,
+    player1_mobile TEXT NOT NULL DEFAULT '',
     player2_name TEXT NOT NULL,
     player2_name_norm TEXT NOT NULL,
     player2_email TEXT NOT NULL,
     player2_email_norm TEXT NOT NULL,
     player2_college TEXT NOT NULL,
     player2_college_norm TEXT NOT NULL,
+    player2_mobile TEXT NOT NULL DEFAULT '',
     payment_amount INTEGER NOT NULL DEFAULT 300,
     payment_screenshot_file TEXT NOT NULL DEFAULT '',
     payment_screenshot_mime TEXT NOT NULL DEFAULT '',
@@ -93,6 +95,19 @@ db.exec(`
 const adminColumns = db.prepare('PRAGMA table_info(admins)').all();
 if (!adminColumns.some((column) => column.name === 'session_epoch')) {
   db.exec('ALTER TABLE admins ADD COLUMN session_epoch INTEGER NOT NULL DEFAULT 0');
+}
+
+// Small migration for databases created before the player mobile numbers were
+// collected, so an existing event database keeps working after an update.
+const registrationColumns = new Set(
+  db.prepare('PRAGMA table_info(registrations)').all().map((column) => column.name)
+);
+for (const column of ['player1_mobile', 'player2_mobile']) {
+  if (!registrationColumns.has(column)) {
+    db.exec(
+      'ALTER TABLE registrations ADD COLUMN ' + column + " TEXT NOT NULL DEFAULT ''"
+    );
+  }
 }
 
 const NORMALISED_COLUMNS = new Set([
@@ -194,11 +209,11 @@ export function createRegistration(values, screenshot) {
         .prepare(
           `INSERT INTO registrations (
             team_name, team_name_norm,
-            player1_name, player1_name_norm, player1_email, player1_email_norm, player1_college, player1_college_norm,
-            player2_name, player2_name_norm, player2_email, player2_email_norm, player2_college, player2_college_norm,
+            player1_name, player1_name_norm, player1_email, player1_email_norm, player1_college, player1_college_norm, player1_mobile,
+            player2_name, player2_name_norm, player2_email, player2_email_norm, player2_college, player2_college_norm, player2_mobile,
             payment_amount, payment_screenshot_file, payment_screenshot_mime, payment_screenshot_size, payment_screenshot_url,
             payment_status, registration_status, created_at, updated_at
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
         )
         .run(
           values.team_name,
@@ -209,12 +224,14 @@ export function createRegistration(values, screenshot) {
           p1EmailNorm,
           values.player1_college,
           normalizeKey(values.player1_college),
+          values.player1_mobile,
           values.player2_name,
           p2NameNorm,
           values.player2_email,
           p2EmailNorm,
           values.player2_college,
           normalizeKey(values.player2_college),
+          values.player2_mobile,
           ENTRY_FEE,
           screenshot.fileName,
           screenshot.mimeType,
