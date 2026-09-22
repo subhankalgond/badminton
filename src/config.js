@@ -70,8 +70,33 @@ export const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 export const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'subhan';
 export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 
-fs.mkdirSync(DATA_DIR, { recursive: true });
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+/**
+ * Create a folder the site must be able to write to, and explain clearly when
+ * it cannot. Hosted platforms that give the code a read only filesystem, such
+ * as Vercel, fail here, and a plain crash gives no clue why.
+ */
+function ensureWritableDir(dir, label, variable) {
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.accessSync(dir, fs.constants.W_OK);
+  } catch {
+    console.error('');
+    console.error('Cannot write to the ' + label + ' folder: ' + dir);
+    console.error('');
+    console.error('This site keeps its database and the payment screenshots on');
+    console.error('disk, so it needs a folder that survives a restart. Point the');
+    console.error(variable + ' environment variable at a writable folder, or deploy');
+    console.error('on a host that gives you a persistent disk mounted on the app.');
+    console.error('');
+    console.error('It cannot run on a platform with a read only or temporary');
+    console.error('filesystem, because every registration would be lost.');
+    console.error('');
+    process.exit(1);
+  }
+}
+
+ensureWritableDir(DATA_DIR, 'data', 'DATA_DIR');
+ensureWritableDir(UPLOAD_DIR, 'uploads', 'UPLOAD_DIR');
 
 /**
  * Look for the organizer's UPI QR image. Supported names, in order:

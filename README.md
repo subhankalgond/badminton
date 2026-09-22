@@ -187,12 +187,49 @@ npm run icons
 
 ## Deploying for real
 
-* Put the site behind HTTPS (a reverse proxy such as nginx or Caddy is enough).
-  The session cookie is marked `Secure` automatically when the request arrives
-  over HTTPS.
-* Set `ADMIN_PASSWORD` and `SESSION_SECRET` through the environment, so the
-  chosen password is not the one written in `src/config.js`.
-* Keep `uploads/` and `data/` on the server, outside the web root. They already
-  are: Express only serves the `public` folder.
+This site is an ordinary long running Node process that keeps its database and
+its payment screenshots in files, so it needs a host that gives it two things:
+a process that stays up, and a writable folder that survives a restart.
+
+### Hosts that cannot run it
+
+Platforms that run each request in a throwaway sandbox with a read only or
+temporary filesystem, Vercel being the common one, have nowhere to put the
+database or the screenshots. The page fails with
+`500 FUNCTION_INVOCATION_FAILED`, and any registration that did get through
+would be lost. The server now says so plainly in the logs instead of crashing
+silently:
+
+```
+Cannot write to the data folder: /var/task/data
+
+This site keeps its database and the payment screenshots on disk, so it needs
+```
+
+To use one of those platforms, the storage has to move off the filesystem
+first: a hosted Postgres database for the registrations, and object storage for
+the screenshots. That is a rewrite of `src/db.js` and the upload route.
+
+### Hosts that can
+
+* A host with a persistent disk, such as Railway, Render, Fly.io or any VPS. A
+  `Dockerfile` is included, which builds on Node 24 and runs as a non root
+  user. Mount the disk at `/data`, or set `DATA_DIR` and `UPLOAD_DIR` to
+  wherever your platform puts it, for example `/var/data` on Render.
+* A computer you control, reached over your own network, or through a tunnel
+  or reverse proxy when players must register from outside it.
+
+### Checklist
+
+* Set `ADMIN_PASSWORD` in the host's environment variables, never in the code.
+* Put the site behind HTTPS. A reverse proxy such as nginx or Caddy is enough.
+  The session cookie is marked `Secure` automatically over HTTPS.
+* Run exactly one instance. The database is a single file, so two instances
+  writing to it from different machines is not supported.
+* Keep `DATA_DIR` and `UPLOAD_DIR` on the same disk, and back them up together.
+* Keep `uploads/` and `data/` outside the web root. They already are: Express
+  serves only the `public` folder.
 * The site sets a strict Content Security Policy, so keep scripts and styles in
   the existing files instead of adding inline ones.
+* `SESSION_SECRET` is optional. Without it a key is generated once and stored
+  in `data/session-secret.key`, which is why `DATA_DIR` has to be persistent.

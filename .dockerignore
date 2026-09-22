@@ -1,0 +1,14 @@
+node_modules
+data
+uploads
+tmp
+
+.git
+.gitignore
+.freebuff
+.kilo
+
+# Secrets stay out of the image. Set them as environment variables on the host.
+.env
+
+*.log
