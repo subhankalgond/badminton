@@ -1,0 +1,12 @@
+node_modules/
+data/
+uploads/
+tmp/
+.env
+*.log
+.DS_Store
+Thumbs.db
+
+# Local editor and agent tooling, not part of the site
+.freebuff/
+.kilo/

@@ -1,0 +1,27 @@
+Webfonts bundled with this site
+===============================
+
+Inter (variable)
+  Copyright 2016 The Inter Project Authors
+  https://github.com/rsms/inter
+  Licensed under the SIL Open Font License, Version 1.1
+
+Space Grotesk (variable)
+  Copyright 2018 The Space Grotesk Project Authors
+  https://github.com/floriankarsten/space-grotesk
+  Licensed under the SIL Open Font License, Version 1.1
+
+Both font files were taken from the @fontsource packages and are served from
+this folder, so the site loads them from its own domain. No external font
+service is contacted.
+
+Files in this folder:
+  inter-latin-wght-normal.woff2
+  inter-latin-ext-wght-normal.woff2
+  space-grotesk-latin-wght-normal.woff2
+  space-grotesk-latin-ext-wght-normal.woff2
+
+The latin-ext files are included because they contain the rupee sign (U+20B9)
+used in the entry fee text.
+
+License text: https://openfontlicense.org

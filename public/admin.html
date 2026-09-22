@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Organizer Dashboard</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/favicon-180.png" />
+    <link rel="preload" href="/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="brand" href="/">
+          <img
+            class="brand__crest"
+            src="/img/aitm-logo.png"
+            alt="Anjuman Institute of Technology and Management"
+            width="44"
+            height="50"
+          />
+          <span class="brand__text">
+            <span class="brand__title">Men's Doubles Badminton</span>
+            <span class="brand__subtitle">Organizer dashboard</span>
+          </span>
+        </a>
+        <nav class="header-nav" aria-label="Main">
+          <a href="/">Registration page</a>
+          <button type="button" class="btn btn--secondary btn--small" id="sign-out" hidden>
+            Sign out
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page">
+      <section class="card login-card" id="login-view" hidden>
+        <div class="card__header card__header--divided">
+          <span class="step-badge" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="10.5" width="16" height="10" rx="2.2" />
+              <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" />
+            </svg>
+          </span>
+          <div class="card__heading">
+            <h1>Organizer sign in</h1>
+            <p>Sign in to review payment screenshots and accept or reject teams.</p>
+          </div>
+        </div>
+        <form id="login-form" class="stack--tight" novalidate>
+          <div class="field">
+            <label for="username">Username</label>
+            <input
+              type="text"
+              id="username"
+              name="username"
+              autocomplete="username"
+              autocapitalize="none"
+              spellcheck="false"
+              required
+            />
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              autocomplete="current-password"
+              required
+            />
+          </div>
+          <div class="notice notice--error" id="login-error" role="alert" hidden></div>
+          <button type="submit" class="btn btn--primary btn--block" id="login-button">
+            Sign in
+          </button>
+        </form>
+      </section>
+
+      <div class="stack" id="dashboard" hidden>
+        <div class="dash-head">
+          <div>
+            <h1>Organizer dashboard</h1>
+            <p>Verify the ₹300 payment of each team before accepting it into the tournament.</p>
+          </div>
+          <div class="actions">
+            <span class="section-title__count" id="signed-in-as"></span>
+            <button type="button" class="btn btn--secondary btn--small" id="refresh-button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20 12a8 8 0 1 1-2.4-5.7" />
+                <path d="M20 4v4.5h-4.5" />
+              </svg>
+              <span id="refresh-label">Refresh</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="notice notice--error" id="admin-alert" role="alert" hidden></div>
+
+        <section aria-labelledby="stats-title">
+          <h2 id="stats-title" class="eyebrow">Statistics</h2>
+          <div class="stats">
+            <div class="stat">
+              <div class="stat__top">
+                <span class="stat__icon" aria-hidden="true">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 6.5h16M4 12h16M4 17.5h10" />
+                  </svg>
+                </span>
+                <p class="stat__label">Total registrations</p>
+              </div>
+              <p class="stat__value" id="stat-total">0</p>
+            </div>
+            <div class="stat stat--pending">
+              <div class="stat__top">
+                <span class="stat__icon" aria-hidden="true">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="8.5" />
+                    <path d="M12 7.5V12l3 2" />
+                  </svg>
+                </span>
+                <p class="stat__label">Pending verification</p>
+              </div>
+              <p class="stat__value" id="stat-pending">0</p>
+            </div>
+            <div class="stat stat--accepted">
+              <div class="stat__top">
+                <span class="stat__icon" aria-hidden="true">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="8.5" />
+                    <path d="m8 12.5 2.8 2.8L16 9.5" />
+                  </svg>
+                </span>
+                <p class="stat__label">Accepted teams</p>
+              </div>
+              <p class="stat__value" id="stat-accepted">0</p>
+            </div>
+            <div class="stat stat--rejected">
+              <div class="stat__top">
+                <span class="stat__icon" aria-hidden="true">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="8.5" />
+                    <path d="m9 9 6 6M15 9l-6 6" />
+                  </svg>
+                </span>
+                <p class="stat__label">Rejected teams</p>
+              </div>
+              <p class="stat__value" id="stat-rejected">0</p>
+            </div>
+          </div>
+        </section>
+
+        <div class="admin-layout">
+          <nav class="admin-nav" id="admin-nav" aria-label="Dashboard sections">
+            <button type="button" class="admin-nav__item" data-view="queue" aria-current="true">
+              <svg class="admin-nav__icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="8.5" />
+                <path d="M12 7.5V12l3 2" />
+              </svg>
+              <span class="admin-nav__label">Verification queue</span>
+              <span class="admin-nav__count" id="nav-count-pending">0</span>
+            </button>
+            <button type="button" class="admin-nav__item" data-view="all" aria-current="false">
+              <svg class="admin-nav__icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 6.5h16M4 12h16M4 17.5h10" />
+              </svg>
+              <span class="admin-nav__label">All registrations</span>
+              <span class="admin-nav__count" id="nav-count-all">0</span>
+            </button>
+            <button type="button" class="admin-nav__item" data-view="accepted" aria-current="false">
+              <svg class="admin-nav__icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="8.5" />
+                <path d="m8 12.5 2.8 2.8L16 9.5" />
+              </svg>
+              <span class="admin-nav__label">Accepted teams</span>
+              <span class="admin-nav__count" id="nav-count-accepted">0</span>
+            </button>
+          </nav>
+
+          <div class="admin-main">
+            <section class="view-panel" id="view-queue" aria-labelledby="queue-title">
+              <div class="card">
+                <div class="card__header card__header--divided">
+                  <div class="card__heading">
+                    <h2 id="queue-title">Pending payment verification</h2>
+                    <p>Open the screenshot, check the payment, then accept or reject the team.</p>
+                  </div>
+                  <span class="section-title__count" id="pending-count"></span>
+                </div>
+                <div class="registration-list" id="pending-list"></div>
+                <p class="empty-note" id="pending-empty" hidden>
+                  No registration is waiting for payment verification.
+                </p>
+              </div>
+            </section>
+
+            <section class="view-panel" id="view-all" aria-labelledby="all-title" hidden>
+              <div class="card">
+                <div class="card__header card__header--divided">
+                  <div class="card__heading">
+                    <h2 id="all-title">All registrations</h2>
+                    <p>Search by team name, player name, college or email, and filter by status.</p>
+                  </div>
+                </div>
+                <div class="toolbar">
+                  <div class="search-field">
+                    <label for="search-input">Search</label>
+                    <div class="search-input-wrap">
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="6.5" />
+                        <path d="m16 16 4 4" />
+                      </svg>
+                      <input
+                        type="search"
+                        id="search-input"
+                        placeholder="Team name, player name, college or email"
+                        autocomplete="off"
+                      />
+                    </div>
+                  </div>
+                  <div class="filters" role="group" aria-label="Filter by status">
+                    <button type="button" class="filter-btn" data-status="ALL" aria-pressed="true">
+                      All <span class="filter-btn__count" data-count="ALL"></span>
+                    </button>
+                    <button type="button" class="filter-btn" data-status="PENDING" aria-pressed="false">
+                      Pending <span class="filter-btn__count" data-count="PENDING"></span>
+                    </button>
+                    <button type="button" class="filter-btn" data-status="ACCEPTED" aria-pressed="false">
+                      Accepted <span class="filter-btn__count" data-count="ACCEPTED"></span>
+                    </button>
+                    <button type="button" class="filter-btn" data-status="REJECTED" aria-pressed="false">
+                      Rejected <span class="filter-btn__count" data-count="REJECTED"></span>
+                    </button>
+                  </div>
+                </div>
+                <div class="registration-list" id="all-list"></div>
+                <p class="empty-note" id="all-empty" hidden>No registration matches this search.</p>
+              </div>
+            </section>
+
+            <section class="view-panel" id="view-accepted" aria-labelledby="accepted-title" hidden>
+              <div class="card">
+                <div class="card__header card__header--divided">
+                  <div class="card__heading">
+                    <h2 id="accepted-title">Accepted teams</h2>
+                    <p>Only registrations accepted after payment verification appear here.</p>
+                  </div>
+                  <span class="section-title__count" id="accepted-count"></span>
+                </div>
+                <div class="registration-list" id="accepted-list"></div>
+                <p class="empty-note" id="accepted-empty" hidden>No team has been accepted yet.</p>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer__inner">
+        <div class="site-footer__brand">
+          <span class="site-footer__title">Anjuman Institute of Technology and Management, Bhatkal</span>
+          <p class="site-footer__note">
+            Payment screenshots are visible only to the signed in organizer.
+          </p>
+        </div>
+        <nav class="site-footer__links" aria-label="Footer">
+          <a href="/">Registration page</a>
+          <a href="/terms">Terms and Conditions</a>
+          <a href="/privacy">Privacy</a>
+        </nav>
+      </div>
+    </footer>
+
+    <div
+      class="modal"
+      id="screenshot-modal"
+      hidden
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="screenshot-title"
+    >
+      <div class="modal__panel modal__panel--wide">
+        <div class="modal__head">
+          <div>
+            <h2 class="modal__title" id="screenshot-title">Payment screenshot</h2>
+            <p class="modal__subtitle" id="screenshot-subtitle"></p>
+          </div>
+          <button type="button" class="modal__close" data-close-modal="screenshot-modal" aria-label="Close">
+            <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <path d="M2 2L14 14M14 2L2 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <img class="modal__screenshot" id="screenshot-image" alt="Payment screenshot uploaded by the team" />
+          <p class="inline-note" id="screenshot-note"></p>
+        </div>
+        <div class="modal__foot">
+          <button type="button" class="btn btn--secondary" data-close-modal="screenshot-modal">
+            Close
+          </button>
+          <button type="button" class="btn btn--danger" id="screenshot-reject">Reject Registration</button>
+          <button type="button" class="btn btn--accept" id="screenshot-accept">Accept Registration</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="accept-modal" hidden role="dialog" aria-modal="true" aria-labelledby="accept-title">
+      <div class="modal__panel">
+        <div class="modal__head">
+          <div>
+            <h2 class="modal__title" id="accept-title">Accept registration</h2>
+            <p class="modal__subtitle" id="accept-subtitle"></p>
+          </div>
+          <button type="button" class="modal__close" data-close-modal="accept-modal" aria-label="Close">
+            <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <path d="M2 2L14 14M14 2L2 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body">
+          <p>
+            Are you sure you want to accept this team? Make sure the ₹300 payment has been
+            verified.
+          </p>
+          <p class="inline-note" id="accept-note"></p>
+        </div>
+        <div class="modal__foot">
+          <button type="button" class="btn btn--secondary" data-close-modal="accept-modal">
+            Cancel
+          </button>
+          <button type="button" class="btn btn--accept" id="confirm-accept">Confirm Accept</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="reject-modal" hidden role="dialog" aria-modal="true" aria-labelledby="reject-title">
+      <div class="modal__panel">
+        <div class="modal__head">
+          <div>
+            <h2 class="modal__title" id="reject-title">Reject registration</h2>
+            <p class="modal__subtitle" id="reject-subtitle"></p>
+          </div>
+          <button type="button" class="modal__close" data-close-modal="reject-modal" aria-label="Close">
+            <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <path d="M2 2L14 14M14 2L2 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal__body stack--tight">
+          <div class="field">
+            <label for="reject-reason">Rejection reason <span class="required">*</span></label>
+            <select id="reject-reason">
+              <option value="">Select a reason</option>
+            </select>
+          </div>
+          <div class="field" id="custom-reason-field" hidden>
+            <label for="reject-custom">Custom reason <span class="required">*</span></label>
+            <textarea
+              id="reject-custom"
+              maxlength="300"
+              placeholder="Explain why this registration is rejected"
+            ></textarea>
+          </div>
+          <p class="field__error" id="reject-error"></p>
+          <p class="inline-note">
+            The reason is saved with the registration and shown in the admin dashboard.
+          </p>
+        </div>
+        <div class="modal__foot">
+          <button type="button" class="btn btn--secondary" data-close-modal="reject-modal">
+            Cancel
+          </button>
+          <button type="button" class="btn btn--danger-solid" id="confirm-reject">
+            Reject Registration
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/js/admin.js"></script>
+  </body>
+</html>

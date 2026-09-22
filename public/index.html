@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Men's Doubles Badminton Registration</title>
+    <meta
+      name="description"
+      content="Inter-college men's doubles badminton tournament registration. Two players per team, both from the same college. Entry fee 300 rupees per team, paid by UPI and verified by the organizer."
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/favicon-180.png" />
+    <link rel="preload" href="/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="brand" href="/">
+          <img
+            class="brand__crest"
+            src="/img/aitm-logo.png"
+            alt="Anjuman Institute of Technology and Management"
+            width="44"
+            height="50"
+          />
+          <span class="brand__text">
+            <span class="brand__title">Men's Doubles Badminton</span>
+            <span class="brand__subtitle">Inter-college tournament registration</span>
+          </span>
+        </a>
+        <nav class="header-nav" aria-label="Main">
+          <a href="/terms">Terms</a>
+          <a href="/privacy">Privacy</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page">
+      <section class="hero">
+        <h1>Men's Doubles Badminton Tournament</h1>
+        <p class="lede">Two players per team, both from the same college.</p>
+      </section>
+
+      <div class="notice notice--rule" role="note">
+        <span class="notice__icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 9v5M12 17.5h.01" />
+            <path d="M10.3 3.9 2.5 18a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+          </svg>
+        </span>
+        <div class="notice__body">
+          <p class="rule-text">IMPORTANT: Both players in a team must belong to the SAME COLLEGE. Players from different colleges cannot form a team. Only teams with both players from the same college will be accepted.</p>
+        </div>
+      </div>
+
+      <section class="fee-strip" aria-labelledby="entry-fee-label">
+        <p class="fee-strip__label" id="entry-fee-label">ENTRY FEE</p>
+        <p class="fee-strip__amount">₹300 <span>PER TEAM</span></p>
+        <p class="fee-strip__note">One payment covers both players. Pay by UPI in step 2.</p>
+      </section>
+
+      <form id="registration-form" class="stack" novalidate>
+        <div class="notice notice--error" id="form-alert" role="alert" hidden></div>
+
+        <section class="card">
+          <div class="section-head">
+            <span class="step-badge" aria-hidden="true">1</span>
+            <div>
+              <h2>Team and players</h2>
+              <p>All fields are required.</p>
+            </div>
+          </div>
+
+          <div class="field team-name-field">
+            <label for="team_name">Team name <span class="required">*</span></label>
+            <input
+              type="text"
+              id="team_name"
+              name="team_name"
+              placeholder="Enter Team Name"
+              maxlength="60"
+              autocomplete="organization"
+              required
+            />
+            <p class="field__error" id="team_name-error" data-error-for="team_name"></p>
+          </div>
+
+          <div class="players">
+            <fieldset class="player">
+              <legend class="player__legend">Player 1</legend>
+              <div class="field-grid">
+                <div class="field">
+                  <label for="player1_name">Full name <span class="required">*</span></label>
+                  <input
+                    type="text"
+                    id="player1_name"
+                    name="player1_name"
+                    placeholder="Full name as on college ID"
+                    maxlength="80"
+                    autocomplete="name"
+                    required
+                  />
+                  <p class="field__error" id="player1_name-error" data-error-for="player1_name"></p>
+                </div>
+                <div class="field">
+                  <label for="player1_email">Email <span class="required">*</span></label>
+                  <input
+                    type="email"
+                    id="player1_email"
+                    name="player1_email"
+                    placeholder="name@example.com"
+                    maxlength="120"
+                    autocomplete="email"
+                    inputmode="email"
+                    autocapitalize="none"
+                    spellcheck="false"
+                    required
+                  />
+                  <p class="field__error" id="player1_email-error" data-error-for="player1_email"></p>
+                </div>
+                <div class="field">
+                  <label for="player1_college">College name <span class="required">*</span></label>
+                  <input
+                    type="text"
+                    id="player1_college"
+                    name="player1_college"
+                    placeholder="College name"
+                    maxlength="120"
+                    autocomplete="off"
+                    required
+                  />
+                  <p class="field__error" id="player1_college-error" data-error-for="player1_college"></p>
+                </div>
+              </div>
+            </fieldset>
+
+            <fieldset class="player">
+              <legend class="player__legend">Player 2</legend>
+              <div class="field-grid">
+                <div class="field">
+                  <label for="player2_name">Full name <span class="required">*</span></label>
+                  <input
+                    type="text"
+                    id="player2_name"
+                    name="player2_name"
+                    placeholder="Full name as on college ID"
+                    maxlength="80"
+                    autocomplete="off"
+                    required
+                  />
+                  <p class="field__error" id="player2_name-error" data-error-for="player2_name"></p>
+                </div>
+                <div class="field">
+                  <label for="player2_email">Email <span class="required">*</span></label>
+                  <input
+                    type="email"
+                    id="player2_email"
+                    name="player2_email"
+                    placeholder="name@example.com"
+                    maxlength="120"
+                    autocomplete="off"
+                    inputmode="email"
+                    autocapitalize="none"
+                    spellcheck="false"
+                    required
+                  />
+                  <p class="field__error" id="player2_email-error" data-error-for="player2_email"></p>
+                </div>
+                <div class="field">
+                  <label for="player2_college">College name <span class="required">*</span></label>
+                  <input
+                    type="text"
+                    id="player2_college"
+                    name="player2_college"
+                    placeholder="College name"
+                    maxlength="120"
+                    autocomplete="off"
+                    required
+                  />
+                  <p class="field__error" id="player2_college-error" data-error-for="player2_college"></p>
+                </div>
+              </div>
+            </fieldset>
+          </div>
+
+          <p
+            class="college-status"
+            id="college-status"
+            data-state="idle"
+            role="status"
+            aria-live="polite"
+          >
+            <span class="college-status__icon" aria-hidden="true">
+              <svg data-icon="idle" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 11v5M12 8h.01" />
+              </svg>
+              <svg data-icon="ok" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9" />
+                <path d="m7.5 12.5 3 3 6-6.5" />
+              </svg>
+              <svg data-icon="error" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 8v5M12 16.5h.01" />
+              </svg>
+            </span>
+            <span id="college-status-text">Both players must enter the same college name.</span>
+          </p>
+        </section>
+
+        <section class="card">
+          <div class="section-head">
+            <span class="step-badge" aria-hidden="true">2</span>
+            <div>
+              <h2>Payment</h2>
+              <p>Pay the entry fee, then upload the payment screenshot.</p>
+            </div>
+          </div>
+
+          <div class="pay">
+            <div class="qr-frame" id="qr-frame" hidden>
+              <img id="qr-image" alt="Organizer UPI QR code for the ₹300 entry fee" />
+            </div>
+            <div class="qr-missing" id="qr-missing">
+              <p class="qr-missing__title">Payment QR code is unavailable</p>
+              <p>
+                Please refresh the page. If the QR code still does not appear, contact the organizer
+                for the payment details.
+              </p>
+            </div>
+            <p class="pay__instruction">Scan the QR code and pay ₹300.</p>
+            <p class="pay__sub">After completing the payment, upload a screenshot of your payment.</p>
+          </div>
+
+          <div class="field upload-block">
+            <label for="payment_screenshot">Upload Payment Screenshot <span class="required">*</span></label>
+
+            <div class="dropzone" id="dropzone" data-dragging="false">
+              <span class="dropzone__icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 16V4" />
+                  <path d="m7.5 8.5 4.5-4.5 4.5 4.5" />
+                  <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+                </svg>
+              </span>
+              <div class="dropzone__text">
+                <p class="dropzone__title">Add your payment screenshot</p>
+                <p class="dropzone__hint">JPG, JPEG, PNG or WEBP up to 5 MB. Drag it here or choose a file.</p>
+              </div>
+              <button type="button" class="btn btn--secondary btn--small" id="choose-file">
+                Choose screenshot
+              </button>
+              <input
+                type="file"
+                id="payment_screenshot"
+                name="payment_screenshot"
+                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                required
+              />
+            </div>
+
+            <p class="field__error field__error--spaced" id="payment_screenshot-error" data-error-for="payment_screenshot"></p>
+
+            <div class="preview preview--spaced" id="preview" hidden>
+              <img class="preview__image" id="preview-image" alt="Preview of the selected payment screenshot" />
+              <div class="preview__meta">
+                <p class="preview__name" id="preview-name"></p>
+                <p class="preview__size" id="preview-size"></p>
+                <button type="button" class="btn btn--secondary btn--small" id="preview-remove">
+                  Remove
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="notice notice--payment" role="note">
+            <span class="notice__icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 8v4.5l3 2" />
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+            </span>
+            <div class="notice__body">
+              <p>
+                Your registration will remain PENDING until the organizer verifies your payment.
+                Uploading a payment screenshot does not automatically confirm your registration.
+                Fake or invalid payment screenshots will be rejected.
+              </p>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn--primary btn--lg btn--wide" id="submit-button">
+              Submit Registration
+            </button>
+            <p class="inline-note">Confirmed only after the organizer verifies the ₹300 payment.</p>
+          </div>
+        </section>
+      </form>
+
+      <section class="status-panel" id="status-panel" tabindex="-1" hidden aria-live="polite">
+        <div class="status-panel__head">
+          <span class="status-panel__icon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m4 12.5 5 5L20 6.5" />
+            </svg>
+          </span>
+          <div>
+            <h2>Registration Submitted</h2>
+            <p class="status-panel__sub" id="submitted-team"></p>
+          </div>
+        </div>
+        <p class="status-badge">
+          <span class="status-badge__label">STATUS:</span> <span>PENDING VERIFICATION</span>
+        </p>
+        <p>
+          Your registration has been submitted successfully and is currently PENDING PAYMENT
+          VERIFICATION.
+        </p>
+        <p>
+          The organizer will verify your ₹300 payment. Your registration will only be accepted
+          after the payment has been verified.
+        </p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer__inner">
+        <div class="site-footer__brand">
+          <span class="site-footer__title">Anjuman Institute of Technology and Management, Bhatkal</span>
+          <p class="site-footer__note">
+            Registration is confirmed only after the organizer verifies the ₹300 entry fee.
+          </p>
+        </div>
+        <nav class="site-footer__links" aria-label="Footer">
+          <a href="/terms">Terms and Conditions</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/admin">Organizer login</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script type="module" src="/js/register.js"></script>
+  </body>
+</html>
