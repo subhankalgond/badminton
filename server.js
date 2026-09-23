@@ -110,6 +110,7 @@ try {
 const organizer = await ensureAdminAccount();
 
 const server = app.listen(PORT, HOST, () => {
+  startSelfKeepAlive();
   const qr = findQrImage();
   // Read the port back from the server, so printing stays correct when PORT
   // is 0 and the operating system picks a free port.
@@ -132,6 +133,40 @@ const server = app.listen(PORT, HOST, () => {
   );
   console.log('');
 });
+
+/**
+ * Self keep-alive. A free instance sleeps after 15 minutes without an
+ * incoming request, and GitHub's scheduled workflow has proven too late to
+ * depend on, so the server requests its own health endpoint every few
+ * minutes. The request goes out through the public address, so the host
+ * counts it as real traffic, and it touches the database, which also counts
+ * as activity for Supabase. Skipped when no public address is known, which
+ * is the case for local runs and the test suite.
+ */
+function startSelfKeepAlive() {
+  const url = String(process.env.SITE_URL || process.env.RENDER_EXTERNAL_URL || '')
+    .trim()
+    .replace(/\/+$/, '');
+  if (!url.startsWith('https://')) return;
+
+  const minutes = Math.min(Math.max(Number(process.env.KEEP_ALIVE_MINUTES) || 4, 2), 14);
+  const address = url + '/api/health';
+  const ping = () => {
+    fetch(address, { signal: AbortSignal.timeout(30_000) })
+      .then((response) => {
+        if (!response.ok) {
+          console.warn('[keep-alive] ' + address + ' answered ' + response.status);
+        }
+      })
+      .catch(() => {
+        // One failed ping is normal while the instance is waking.
+      });
+  };
+
+  ping();
+  setInterval(ping, minutes * 60 * 1000);
+  console.log('Self keep-alive:  pinging ' + address + ' every ' + minutes + ' minutes');
+}
 
 function localAddresses() {
   const addresses = [];
