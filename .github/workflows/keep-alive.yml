@@ -5,9 +5,9 @@
 # sends one request every 5 minutes, which is a real request, so the instance
 # stays up and players never see that wait.
 #
-# Set the address once, otherwise the default below is used:
-#   Repository Settings > Secrets and variables > Actions > Variables >
-#   New repository variable, named SITE_URL, value https://your-site.onrender.com
+# The address below is this service's own onrender.com address. If the service
+# is ever renamed, update it here (or set a repository variable named SITE_URL
+# under Settings > Secrets and variables > Actions > Variables, which wins).
 #
 # Two things worth knowing:
 #   * GitHub runs scheduled workflows on a best effort basis, so a ping can be
@@ -37,7 +37,7 @@ jobs:
         env:
           SITE_URL: ${{ vars.SITE_URL }}
         run: |
-          url="${SITE_URL:-https://badminton-registration.onrender.com}"
+          url="${SITE_URL:-https://badminton-2yvb.onrender.com}"
           url="${url%/}/api/health"
 
           for attempt in 1 2 3; do

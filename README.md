@@ -347,6 +347,10 @@ If the database line is missing, the server refused to start and printed why.
   be served by a short lived function. Making it work there means restructuring
   the server into a handler.
 
+The deployed service lives at `https://badminton-2yvb.onrender.com`. The
+shorter `badminton-registration.onrender.com` name belongs to an unrelated
+project, not this one.
+
 ### Checklist
 
 * Set `ADMIN_PASSWORD` in the host's environment variables, never in the code,
@@ -369,10 +373,11 @@ refuses connections until it is resumed from the dashboard.
 
 One scheduled job handles both. `.github/workflows/keep-alive.yml` requests the
 site every 5 minutes, and that request reaches the database, so it counts as
-activity for Supabase as well. It is already in the repository, so it runs as
-soon as the repository is on GitHub. Point it at your own address by adding a
-repository variable named `SITE_URL` under **Settings > Secrets and variables >
-Actions > Variables**.
+activity for Supabase as well. It is already in the repository and pointed at
+this service's own address, `https://badminton-2yvb.onrender.com`. If the
+service is ever renamed on Render, update the address at the bottom of that
+file, or add a repository variable named `SITE_URL` under **Settings > Secrets
+and variables > Actions > Variables**, which wins over the file.
 
 It calls `/api/health`, which answers 200 only when the database is reachable as
 well as the site. That way the ping reports the real state of things rather than
