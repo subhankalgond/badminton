@@ -1,34 +1,45 @@
-# Deploys this site on Render with a persistent disk, so the database and the
-# payment screenshots survive a restart or a redeploy.
+# Deploys this site on Render, with the data in a Supabase PostgreSQL database.
+#
+# There is no disk to attach and no folder to keep: registrations and payment
+# screenshots are stored in the database, so the free instance type is enough
+# and nothing is lost when Render restarts, redeploys or suspends the service.
 #
 # How to use it:
-#   1. Push this repository to GitHub.
-#   2. In Render: New > Blueprint, then choose this repository.
-#   3. Render asks for the secret below (the organizer password). Type it in.
-#   4. Create the Blueprint. The first deploy takes a few minutes.
+#   1. Create a Supabase project, then copy the connection line from
+#      Connect > Session pooler, replacing [YOUR-PASSWORD] with the database
+#      password.
+#   2. Push this repository to GitHub.
+#   3. In Render: New > Blueprint, then choose this repository.
+#   4. Render reads this file and asks for the connection line, the organizer
+#      password and nothing else. Nothing secret is stored in the repository.
+#   5. Create the Blueprint. The first build takes a few minutes.
 #
-# A persistent disk requires a paid instance type, which is why the plan is
-# starter. Keep the service at one instance: the database is a single file and
-# two instances cannot share it.
+# After that, every push to the main branch redeploys automatically.
 services:
   - type: web
     name: badminton-registration
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: starter
-    # Closest available region to India. Other choices: frankfurt, ohio, oregon.
+    plan: free
+    # Closest available region to India. Keep it near the Supabase region.
     region: singapore
-    healthCheckPath: /
+    # Answers 200 only when the database is reachable too.
+    healthCheckPath: /api/health
     autoDeployTrigger: commit
     envVars:
       - key: ADMIN_USERNAME
         value: subhan
-      # Set this in the Render dashboard. It is never stored in the repository.
+      # Asked for at creation. Never written into the repository.
       - key: ADMIN_PASSWORD
         sync: false
-    # The image already points DATA_DIR and UPLOAD_DIR at /data, so the disk
-    # is mounted there and nothing else has to be configured.
-    disk:
-      name: badminton-data
-      mountPath: /data
-      sizeGB: 1
+      # Signs the organizer session cookie. Render generates a random value.
+      - key: SESSION_SECRET
+        generateValue: true
+      # The connection line copied from Supabase, Connect > Session pooler.
+      # It contains the host, the port, the user, the password and the
+      # database, so there is only one value to paste.
+      - key: DB_URL
+        sync: false
+      # Supabase refuses a connection without encryption.
+      - key: DB_SSL
+        value: 'true'

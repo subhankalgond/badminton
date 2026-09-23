@@ -2,9 +2,9 @@ import os from 'node:os';
 import path from 'node:path';
 import express from 'express';
 import multer from 'multer';
-import { DATA_DIR, HOST, PORT, PUBLIC_DIR, UPLOAD_DIR, findQrImage } from './src/config.js';
+import { DB_SSL, DB_TARGET, HOST, PORT, PUBLIC_DIR, findQrImage } from './src/config.js';
 import { ensureAdminAccount } from './src/auth.js';
-import { closeDatabase } from './src/db.js';
+import { closeDatabase, initDatabase } from './src/db.js';
 import publicRoutes from './src/routes/public.js';
 import adminRoutes from './src/routes/admin.js';
 
@@ -95,7 +95,19 @@ app.use((error, req, res, next) => {
   });
 });
 
-const organizer = ensureAdminAccount();
+// The database comes first: a registration that cannot be stored is worse
+// than a site that refuses to start.
+let database;
+try {
+  database = await initDatabase();
+} catch (error) {
+  console.error('');
+  console.error(error && error.message ? error.message : error);
+  console.error('');
+  process.exit(1);
+}
+
+const organizer = await ensureAdminAccount();
 
 const server = app.listen(PORT, HOST, () => {
   const qr = findQrImage();
@@ -111,10 +123,13 @@ const server = app.listen(PORT, HOST, () => {
   }
   console.log('Payment QR code:   ' + (qr ? qr + ' (found)' : 'add your image to public/qr/upi-qr.png'));
   console.log('Organizer login:   ' + organizer.username + ' (password from .env)');
-  // Printed so a hosted deploy can be checked at a glance: both folders must
-  // point inside the mounted disk, or registrations are lost on a restart.
-  console.log('Data folder:       ' + DATA_DIR);
-  console.log('Uploads folder:    ' + UPLOAD_DIR);
+  // Printed so a hosted deploy can be checked at a glance. Registrations and
+  // payment screenshots live in this database, so nothing is stored on the
+  // server's disk and a restart cannot lose them.
+  console.log(
+    'Database:          ' + DB_TARGET + ' (PostgreSQL ' + database.version + ', schema ' +
+      database.schema + ', TLS ' + (DB_SSL ? 'on' : 'off') + ')'
+  );
   console.log('');
 });
 
@@ -130,8 +145,8 @@ function localAddresses() {
 
 function shutdown() {
   console.log('\nShutting down.');
-  server.close(() => {
-    closeDatabase();
+  server.close(async () => {
+    await closeDatabase();
     process.exit(0);
   });
   setTimeout(() => process.exit(0), 3000).unref();

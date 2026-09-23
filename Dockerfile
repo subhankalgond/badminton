@@ -1,30 +1,27 @@
-# Runs the registration site as a normal, long lived Node process, with the
-# database and the payment screenshots kept on a disk you mount.
+# Runs the registration site as a normal, long lived Node process.
 #
-# Mount that disk at /data when you deploy, because the site cannot store
-# registrations without a writable, persistent folder. Hosts whose filesystem
-# is read only or wiped on every restart (Vercel, and free tiers without a
-# volume) cannot run this image correctly.
+# The site keeps its registrations and payment screenshots in PostgreSQL and
+# writes nothing to disk, so this image runs anywhere: a host with a persistent
+# disk, a free instance whose filesystem is wiped on every restart, or your own
+# machine. The database is the only thing that has to be reachable.
 FROM node:24-bookworm-slim
 
 ENV NODE_ENV=production
 WORKDIR /app
 
-# express and multer are the only runtime dependencies. The webfonts are
-# already committed under public/fonts, so the build tools are not needed here.
+# express, multer and pg are the only runtime dependencies. The webfonts are
+# already committed under public/fonts, so the build tools are not needed.
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY . .
 
-# Where the database and the screenshots live. Point these at your volume if
-# it is mounted somewhere else, for example /var/data on Render.
+# The database connection line, the organizer password and the session key are
+# read from the environment. .dockerignore keeps the local .env file out of the
+# image, so nothing secret is baked in here.
 ENV HOST=0.0.0.0 \
-    PORT=3000 \
-    DATA_DIR=/data \
-    UPLOAD_DIR=/data/uploads
+    PORT=3000
 
-RUN mkdir -p /data/uploads && chown -R node:node /data
 USER node
 
 EXPOSE 3000

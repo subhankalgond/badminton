@@ -12,10 +12,64 @@ the search, the filters and the statistics all run against a live backend.
 ## Requirements
 
 * Node.js 22.5 or newer (built and tested on Node 24)
-* No database server needed. SQLite is used through the built-in `node:sqlite`
-  module, so the only npm dependencies are Express and Multer.
+* A PostgreSQL database. This project uses Supabase, whose free plan is enough.
+  Every registration and every payment screenshot is stored there, so the site
+  keeps its data when the server restarts, is redeployed, or is suspended.
 
-## Install and run
+Nothing else is needed. There is no database server to run on your own machine,
+no file to keep and no disk to mount.
+
+## Step 1: create the database
+
+1. Sign up at `supabase.com` and create a new project. Choose a region near
+   you, and save the database password it asks for. It is shown only once.
+2. Wait until the project finishes setting up.
+3. In the project, click **Connect** at the top.
+4. Choose **Session pooler**, then copy the URI it shows. It looks like this:
+
+```
+postgresql://postgres.abcdefghij:YOUR-PASSWORD@aws-0-ap-south-1.pooler.supabase.com:5432/postgres
+```
+
+5. Replace `YOUR-PASSWORD` with the password from step 1. If the password
+   contains any of `&`, `#`, `?` or a space, replace each one with its percent
+   encoded form, for example `&` becomes `%26`.
+
+Use the **Session pooler** and not the other two, for these reasons:
+
+* **Direct connection** is IPv6 only on the free plan. Rendering hosts that
+  reach it over IPv4 cannot connect at all.
+* **Transaction pooler** does not support prepared statements, which a long
+  running server with a connection pool does use.
+
+The free plan includes 500 MB of storage. Payment screenshots live in the
+database, so a few hundred teams fit comfortably.
+
+## Step 2: point the site at it
+
+Copy the example file and paste the connection line in:
+
+```bash
+cp .env.example .env
+```
+
+```
+DB_URL=postgresql://postgres.abcdefghij:your-password@aws-0-ap-south-1.pooler.supabase.com:5432/postgres
+ADMIN_USERNAME=subhan
+ADMIN_PASSWORD=your-organizer-password
+```
+
+Then check it, before starting anything:
+
+```bash
+npm run db:check
+```
+
+It connects, creates the tables, and prints the PostgreSQL version, the
+database, the schema and how many registrations are stored. If something is
+wrong it prints the reason and what to change.
+
+### Install and run
 
 ```bash
 npm install
@@ -27,8 +81,8 @@ Then open:
 * Registration page: `http://localhost:3000/`
 * Organizer dashboard: `http://localhost:3000/admin`
 
-The server prints these links, plus the address to use from a phone on the same
-Wi-Fi network, when it starts.
+The server prints these links, the address to use from a phone on the same
+Wi-Fi network, and the database it connected to, when it starts.
 
 For development with automatic restarts:
 
@@ -36,18 +90,32 @@ For development with automatic restarts:
 npm run dev
 ```
 
+The site creates its own tables on the first start, so there is nothing to
+import. If it cannot connect, it stops with the reason and the fix, for example:
+
+```
+Cannot connect to the PostgreSQL database.
+
+Target: postgres.abcdefghij@aws-0-ap-south-1.pooler.supabase.com:5432/postgres
+Driver said: password authentication failed for user "postgres.abcdefghij"
+
+The database refused that password. Copy the connection line again, including the password.
+```
+
+Separate values are also accepted, for a provider that gives them one at a
+time: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` and `DB_PASSWORD`. A connection
+line describes the whole connection, so when `DB_URL` is present it wins over
+those, which stops a leftover `DB_PORT` from quietly overriding the port inside
+it.
+
+Encryption is on by default for any host other than `localhost`, because
+Supabase refuses a plain connection. Set `DB_SSL_CA` to the certificate from
+**Connect > SSL configuration** to verify the server as well as encrypt.
+
 ## Organizer sign in
 
 The dashboard is protected by one organizer account, and the password lives in
 a local `.env` file that git ignores, so it is never part of the repository.
-
-Set it up once on a new machine:
-
-```bash
-cp .env.example .env
-```
-
-Then edit `.env`:
 
 ```
 ADMIN_USERNAME=subhan
@@ -59,11 +127,12 @@ you can also do `ADMIN_PASSWORD=other npm start` without touching the file.
 
 * With no password configured anywhere, the server creates a random one on
   first start and prints it once in the terminal.
-* On the disk the password is stored only as a scrypt hash, never as text.
+* The password is stored only as a scrypt hash, never as text.
 * The account is created or refreshed on every start, and any other organizer
   account is deleted at the same time. A username used before cannot sign in.
 * Signing out ends the session on the server as well as in the browser, so a
   copied cookie stops working immediately.
+* Sign in attempts are limited to 10 per 15 minutes per address.
 
 ## The UPI QR code
 
@@ -127,26 +196,53 @@ It is used at 50px tall in the header of every page, and 42px on phones.
   Rejected teams may register again with corrected details.
 * **Uploads.** Only JPEG, PNG and WEBP are accepted. The file signature is
   checked, so a renamed executable or a text file with an image content type is
-  refused. The size limit is 5 MB. Files are stored with random names and are
-  never reachable as public URLs.
+  refused. The size limit is 5 MB.
 * **Access.** Public visitors can submit a registration and nothing else. The
   registration list, the screenshots and the accept and reject actions all
   require a signed in organizer.
+* **Screenshots are private.** They are stored in the database and served only
+  through an authenticated route, never as a public file.
 
 ## Where the data lives
 
 | Item | Location | Notes |
 | --- | --- | --- |
-| Database | `data/app.db` | SQLite file, created on first start |
-| Payment screenshots | `uploads/` | Private, served only through an authenticated route |
-| Session key | `data/session-secret.key` | Generated on first start |
-| Organizer password | `.env` | Ignored by git, copy `.env.example` to create it |
+| Registrations | table `registrations` | Includes the entry fee, the status and the verification details |
+| Duplicate protection | table `registration_keys` | One row per active team name, email and player pair |
+| Payment screenshots | column `registrations.payment_screenshot_data` | Stored with the registration, so a restart cannot lose them |
+| Organizer account | table `admins` | Password kept as a scrypt hash |
+| Organizer password | `.env` on the machine running the site | Ignored by git, copy `.env.example` to create it |
+| Session key | `SESSION_SECRET`, or derived from the organizer password | Nothing is written to disk for it |
 | Your UPI QR image | `public/qr/upi-qr.png` | Public, shown on the payment section |
 | Institute crest | `public/img/aitm-logo.png` | Public, header of every page. Regenerate with `npm run logo` |
 | Webfonts | `public/fonts/` | Self-hosted Inter and Space Grotesk, see the licence note in that folder |
 
-Both `data/` and `uploads/` are ignored by git. Back them up together, they
-belong to each other.
+The tables are created in the `public` schema. The site creates them on start
+and adds missing columns to an existing database, so an older database keeps
+working after an update.
+
+Nothing the site stores is kept on its own disk. That is deliberate: a host
+that wipes its filesystem on every restart cannot lose a registration, because
+there is no file to lose.
+
+The earlier `data/` and `uploads/` folders, and MySQL, are no longer used by
+this project. They can be deleted.
+
+## Backups
+
+The database holds everything, including the payment screenshots, so one dump
+is a complete backup:
+
+```bash
+pg_dump "postgresql://postgres.abcdefghij:your-password@aws-0-ap-south-1.pooler.supabase.com:5432/postgres" > badminton-backup.sql
+```
+
+`pg_dump` comes with the PostgreSQL client tools. It is a free download from
+`postgresql.org`, and installing the client does not install or start a server.
+
+Take a dump before the draw is made, and one more at the end of the event.
+Restoring it puts the registrations and the screenshots back exactly as they
+were.
 
 ## Environment variables
 
@@ -156,10 +252,12 @@ belong to each other.
 | `HOST` | `0.0.0.0` | Bind address, use `127.0.0.1` for local only |
 | `ADMIN_USERNAME` | `subhan` | Organizer username |
 | `ADMIN_PASSWORD` | from `.env` | Organizer password, kept out of git |
-| `SESSION_SECRET` | generated file | Key used to sign session cookies |
-| `DATA_DIR` | `./data` | Database and session key folder |
-| `UPLOAD_DIR` | `./uploads` | Payment screenshot folder |
-| `DB_FILE` | `$DATA_DIR/app.db` | Explicit database path |
+| `DB_URL` | none | The connection line from Supabase. Required |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | none | The same connection split into five values, if you prefer |
+| `DB_SSL` | on for any host other than localhost | Encrypt the database connection |
+| `DB_SSL_CA` | none | Path to the server certificate, to verify the connection as well as encrypt it |
+| `DB_SCHEMA` | `public` | Schema holding the tables. Only the tests change it |
+| `SESSION_SECRET` | derived from the organizer password | Key used to sign session cookies |
 
 ## Using the dashboard during the event
 
@@ -174,15 +272,33 @@ belong to each other.
 
 ## Tests
 
+The full suite runs against a PostgreSQL that lives inside the Node process,
+with no database server, no account and no credentials anywhere:
+
+```bash
+npm run test:local
+```
+
+That is the one to use day to day. To run the same suite against your real
+database instead, for instance to check the connection line before deploying:
+
 ```bash
 npm test
 ```
 
-The test starts a real server on a test port with its own database and upload
-folder, then walks the whole flow: page content, validation, the same-college
-rule, duplicate protection, upload type and size limits, blocked public access
-to the admin API, sign in, statistics from the database, search and filters,
-screenshot download, accept, reject with a reason, and signing out.
+The tests never touch your registrations either way. They create a separate
+schema called `badminton_test`, build their own tables there, and drop it again
+when they finish. The tables the site uses, in the `public` schema, are never
+read or written by a test run.
+
+The suite starts a real server on a test port and walks the whole flow: page
+content, validation, the same-college rule, duplicate protection, upload type
+and size limits, blocked public access to the admin API, sign in, statistics
+from the database, search and filters, screenshot download compared byte for
+byte with the upload, accept, reject with a reason, and signing out.
+
+The test refuses to run unless the schema name is lowercase, ends in `_test`,
+and is not `public`. Change it with `TEST_DB_SCHEMA` if you ever need to.
 
 To regenerate the favicon files after editing the icon drawing:
 
@@ -192,75 +308,89 @@ npm run icons
 
 ## Deploying for real
 
-This site is an ordinary long running Node process that keeps its database and
-its payment screenshots in files, so it needs a host that gives it two things:
-a process that stays up, and a writable folder that survives a restart.
+The site is an ordinary long running Node process that keeps everything in
+PostgreSQL, so a host has to give it a process that stays up and a database it
+can reach. It does not need a persistent disk, and that is what makes the free
+instance types usable.
 
-### Hosts that cannot run it
+A `Dockerfile` is included, which builds on Node 24, installs only the runtime
+dependencies and runs as a non root user.
 
-Platforms that run each request in a throwaway sandbox with a read only or
-temporary filesystem, Vercel being the common one, have nowhere to put the
-database or the screenshots. The page fails with
-`500 FUNCTION_INVOCATION_FAILED`, and any registration that did get through
-would be lost. The server now says so plainly in the logs instead of crashing
-silently:
-
-```
-Cannot write to the data folder: /var/task/data
-
-This site keeps its database and the payment screenshots on disk, so it needs
-```
-
-To use one of those platforms, the storage has to move off the filesystem
-first: a hosted Postgres database for the registrations, and object storage for
-the screenshots. That is a rewrite of `src/db.js` and the upload route.
-
-### Hosts that can
-
-A host with a persistent disk: Railway, Render, Fly.io or any VPS. A
-`Dockerfile` is included, which builds on Node 24 and runs as a non root user.
-
-#### Render, using the included `render.yaml`
+### Render, using the included `render.yaml`
 
 1. In Render, choose **New > Blueprint** and pick this repository.
-2. Render reads `render.yaml`, then asks for `ADMIN_PASSWORD`. Type the
-   organizer password there. It is never written into the repository.
-3. Create the Blueprint. Render builds the image, mounts a 1 GB disk at
-   `/data` and gives you an `onrender.com` address over HTTPS.
+2. Render reads `render.yaml` and asks for two secrets: `DB_URL`, pasted from
+   Supabase, and the organizer password. `SESSION_SECRET` is generated for you.
+   Nothing secret is stored in the repository.
+3. Create the Blueprint. Render builds the image and gives you an
+   `onrender.com` address over HTTPS.
 
-The disk is why that plan is not the free one: Render attaches persistent disks
-only to paid services. It also takes a snapshot of the disk every 24 hours.
+The blueprint asks for the free instance type, which is enough now that the
+data is not on the disk. After the first deploy, check the logs for these lines:
 
-#### Railway
+```
+Organizer login:   subhan (password from .env)
+Database:          postgres.abcdefghij@aws-0-ap-south-1.pooler.supabase.com:5432/postgres (PostgreSQL 17.6, schema public, TLS on)
+```
 
-1. **New Project > Deploy from GitHub repo**, and choose this repository.
-   Railway finds the `Dockerfile` on its own.
-2. Add a volume to the service and set its mount path to `/data`.
-3. Add the variables `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `DATA_DIR` (`/data`)
-   and `UPLOAD_DIR` (`/data/uploads`).
-4. Keep it at one replica. Two replicas would each have their own copy of the
-   database.
+If the database line is missing, the server refused to start and printed why.
 
-Railway includes volume storage on its trial and Hobby plans.
+### Other hosts
 
-#### Your own computer
-
-Run `npm start` and reach it over your own network, or through a tunnel or a
-reverse proxy when players must register from outside it. Free, and the data
-stays on your disk, but the site is only up while the computer is.
+* **Railway:** **New Project > Deploy from GitHub repo**, choose this
+  repository, add the same database and organizer variables, and keep it at one
+  replica.
+* **Fly.io or any VPS:** build the included Docker image and set the same
+  variables. Nothing has to be mounted.
+* **Vercel and similar:** not a fit. This is a long lived server that holds its
+  own rate limit counters in memory, and those platforms expect each request to
+  be served by a short lived function. Making it work there means restructuring
+  the server into a handler.
 
 ### Checklist
 
-* Set `ADMIN_PASSWORD` in the host's environment variables, never in the code.
-* Put the site behind HTTPS. A reverse proxy such as nginx or Caddy is enough.
-  The session cookie is marked `Secure` automatically over HTTPS.
-* Run exactly one instance. The database is a single file, so two instances
-  writing to it from different machines is not supported, and most platforms
-  refuse to attach one disk to two instances for that reason.
-* Keep `DATA_DIR` and `UPLOAD_DIR` on the same disk, and back them up together.
-* Keep `uploads/` and `data/` outside the web root. They already are: Express
-  serves only the `public` folder.
-* The site sets a strict Content Security Policy, so keep scripts and styles in
-  the existing files instead of adding inline ones.
-* `SESSION_SECRET` is optional. Without it a key is generated once and stored
-  in `data/session-secret.key`, which is why `DATA_DIR` has to be persistent.
+* Set `ADMIN_PASSWORD` in the host's environment variables, never in the code,
+  and use a password that was never pushed to GitHub.
+* Put the site behind HTTPS. Render does this for you. Behind your own reverse
+  proxy, nginx or Caddy is enough. The session cookie is marked `Secure`
+  automatically over HTTPS.
+* Keep `DB_URL` out of screenshots and issue trackers. The startup banner prints
+  the host and the user, never the password.
+* Change the Supabase database password if the connection line was ever shared.
+  **Project settings > Database > Reset database password** does that, and the
+  site only needs the new line pasted in again.
+
+## Keeping it awake
+
+A free Render instance is stopped after 15 minutes without a request, and the
+next visitor then waits about a minute while it starts again. A free Supabase
+project is paused after a week without any activity, and a paused project
+refuses connections until it is resumed from the dashboard.
+
+One scheduled job handles both. `.github/workflows/keep-alive.yml` requests the
+site every 5 minutes, and that request reaches the database, so it counts as
+activity for Supabase as well. It is already in the repository, so it runs as
+soon as the repository is on GitHub. Point it at your own address by adding a
+repository variable named `SITE_URL` under **Settings > Secrets and variables >
+Actions > Variables**.
+
+It calls `/api/health`, which answers 200 only when the database is reachable as
+well as the site. That way the ping reports the real state of things rather than
+just that the web process is running.
+
+Two things to know. GitHub runs scheduled workflows on a best effort basis, so a
+ping can arrive a few minutes late, which the 15 minute window absorbs. And a
+scheduled workflow is disabled automatically after 60 days without a commit, so
+if the site has been untouched for two months, open the **Actions** tab and
+enable it again.
+
+If you would rather not depend on GitHub's scheduler, a free uptime service does
+the same job and can also email you when the site goes down: point a monitor at
+`https://your-site.onrender.com/api/health` every 5 minutes with cron-job.org or
+UptimeRobot. Either way, keep the interval between 5 and 14 minutes, because 15
+minutes of silence is what puts the web service to sleep.
+
+One caution about the Render free plan: it includes 750 instance hours per
+workspace per month, and keeping one service awake around the clock uses about
+730 of them. If you run other free services in the same workspace, those will
+run out of hours and be suspended until the month resets.

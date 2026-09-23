@@ -1,0 +1,56 @@
+# Stops the deployed site from going to sleep.
+#
+# A free instance is stopped after 15 minutes without a single request, and the
+# next visitor then waits about a minute while it starts again. This workflow
+# sends one request every 5 minutes, which is a real request, so the instance
+# stays up and players never see that wait.
+#
+# Set the address once, otherwise the default below is used:
+#   Repository Settings > Secrets and variables > Actions > Variables >
+#   New repository variable, named SITE_URL, value https://your-site.onrender.com
+#
+# Two things worth knowing:
+#   * GitHub runs scheduled workflows on a best effort basis, so a ping can be
+#     a few minutes late under load. The 15 minute window absorbs that.
+#   * GitHub disables a scheduled workflow automatically after 60 days without
+#     a commit. Open the Actions tab and enable it again if that happens.
+
+name: Keep the site awake
+
+on:
+  schedule:
+    # Every 5 minutes. The shortest interval GitHub accepts.
+    - cron: '*/5 * * * *'
+  # Adds a "Run workflow" button, so the ping can be tried by hand.
+  workflow_dispatch:
+
+concurrency:
+  group: keep-alive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Ping the health check
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          url="${SITE_URL:-https://badminton-registration.onrender.com}"
+          url="${url%/}/api/health"
+
+          for attempt in 1 2 3; do
+            code=$(curl -s -o /tmp/body -w '%{http_code}' --max-time 90 "$url" || echo 000)
+            echo "Attempt $attempt: $url answered $code"
+            if [ "$code" = "200" ]; then
+              cat /tmp/body
+              echo
+              exit 0
+            fi
+            sleep 20
+          done
+
+          # A warning rather than a failure: a sleeping or restarting instance
+          # should not send an email every 5 minutes.
+          echo "::warning::The site did not answer with 200. Last response: $(cat /tmp/body 2>/dev/null)"

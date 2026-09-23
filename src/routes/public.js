@@ -1,9 +1,7 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import express from 'express';
 import multer from 'multer';
-import { ENTRY_FEE, MAX_UPLOAD_BYTES, UPLOAD_DIR, findQrImage } from '../config.js';
-import { DuplicateRegistrationError, createRegistration } from '../db.js';
+import { ENTRY_FEE, MAX_UPLOAD_BYTES, findQrImage } from '../config.js';
+import { DuplicateRegistrationError, checkDatabase, createRegistration } from '../db.js';
 import {
   ALLOWED_SCREENSHOT_TYPES,
   COLLEGE_MISMATCH_MESSAGE,
@@ -60,6 +58,21 @@ router.get('/config', (req, res) => {
   });
 });
 
+/**
+ * Health check. Reports whether the site can reach its database, which is the
+ * difference between being awake and being usable. Used by the schedule that
+ * stops the free instance from going to sleep.
+ */
+router.get('/health', async (req, res) => {
+  let ok = false;
+  try {
+    ok = await checkDatabase();
+  } catch {
+    ok = false;
+  }
+  res.status(ok ? 200 : 503).json({ ok, database: ok ? 'connected' : 'unavailable' });
+});
+
 /** Submit one team registration. Payment always stays PENDING here. */
 router.post('/registrations', registrationLimit, (req, res, next) => {
   upload.single('payment_screenshot')(req, res, (uploadError) => {
@@ -77,11 +90,11 @@ router.post('/registrations', registrationLimit, (req, res, next) => {
       return;
     }
 
-    handleRegistration(req, res, next);
+    handleRegistration(req, res, next).catch(next);
   });
 });
 
-function handleRegistration(req, res, next) {
+async function handleRegistration(req, res, next) {
   const body = req.body || {};
   const validation = validateRegistration(body);
   // Multer exposes the upload as {originalname, mimetype, size}. The shared
@@ -112,40 +125,32 @@ function handleRegistration(req, res, next) {
     return;
   }
 
-  const fileName = buildScreenshotFileName(detectedType);
-  const absolutePath = path.join(UPLOAD_DIR, fileName);
-
-  fs.promises
-    .writeFile(absolutePath, req.file.buffer, { flag: 'wx' })
-    .then(() =>
-      createRegistration(validation.values, {
-        fileName,
-        mimeType: detectedType,
-        size: req.file.size,
-      })
-    )
-    .then((created) => {
-      res.status(201).json({
-        ok: true,
-        registration_status: 'PENDING',
-        payment_status: 'PENDING',
-        payment_amount: ENTRY_FEE,
-        message:
-          'Your registration has been submitted successfully and is currently PENDING PAYMENT VERIFICATION.',
-      });
-    })
-    .catch((error) => {
-      return fs.promises
-        .unlink(absolutePath)
-        .catch(() => {})
-        .then(() => {
-          if (error instanceof DuplicateRegistrationError) {
-            res.status(409).json({ ok: false, message: error.message });
-            return;
-          }
-          next(error);
-        });
+  try {
+    // The screenshot is stored in the database with the registration, so it
+    // cannot be lost by a restart on a host without a persistent disk.
+    await createRegistration(validation.values, {
+      fileName: buildScreenshotFileName(detectedType),
+      mimeType: detectedType,
+      size: req.file.size,
+      buffer: req.file.buffer,
     });
+  } catch (error) {
+    if (error instanceof DuplicateRegistrationError) {
+      res.status(409).json({ ok: false, message: error.message });
+      return;
+    }
+    next(error);
+    return;
+  }
+
+  res.status(201).json({
+    ok: true,
+    registration_status: 'PENDING',
+    payment_status: 'PENDING',
+    payment_amount: ENTRY_FEE,
+    message:
+      'Your registration has been submitted successfully and is currently PENDING PAYMENT VERIFICATION.',
+  });
 }
 
 export default router;

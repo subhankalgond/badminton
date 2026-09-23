@@ -1,22 +1,115 @@
 /**
  * End to end test of the public registration flow and the admin dashboard
- * API. Starts a real server on a test port with its own database and upload
- * folder, then runs the whole tournament flow against it.
+ * API. It prepares a throwaway PostgreSQL schema, starts a real server on a
+ * test port that uses it, then runs the whole tournament flow against it.
+ *
+ * That schema is dropped and rebuilt on every run. The tables the site really
+ * uses live in the 'public' schema and are never touched.
  *
  * Run with: npm test
  */
 import { spawn } from 'node:child_process';
-import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Client } from 'pg';
+import {
+  DB_CONFIGURED,
+  DB_CONNECTION_STRING,
+  DB_HOST,
+  DB_NAME,
+  DB_PASSWORD,
+  DB_PORT,
+  DB_SSL,
+  DB_USER,
+} from '../src/config.js';
 import { createCanvas, encodePng, fillRect } from './png.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
-const runDir = path.join(root, 'tmp', 'test-run');
 const port = Number(process.env.TEST_PORT || 4123);
 const base = 'http://127.0.0.1:' + port;
 const adminPassword = 'test-password-123';
+const testSchema = process.env.TEST_DB_SCHEMA || 'badminton_test';
+
+// This file creates and drops a schema, so the name must clearly be a test
+// one. 'public', where the real tables live, can never match.
+if (!/^[a-z][a-z0-9_]*_test$/.test(testSchema)) {
+  console.error(
+    'Refusing to run: the test schema name must be lowercase, end in _test, and not be "public". ' +
+      'It is "' +
+      testSchema +
+      '".'
+  );
+  process.exit(1);
+}
+
+if (!DB_CONFIGURED) {
+  console.error('');
+  console.error('No database is configured, so there is nothing to test against.');
+  console.error('');
+  console.error('Either put your connection line in .env as DB_URL, or run the whole');
+  console.error('suite against a PostgreSQL that lives inside this process, with no');
+  console.error('database server and no credentials:');
+  console.error('');
+  console.error('  npm run test:local');
+  console.error('');
+  process.exit(1);
+}
+
+let testConnection = null;
+
+function connectionSettings() {
+  const settings = DB_CONNECTION_STRING
+    ? { connectionString: DB_CONNECTION_STRING }
+    : {
+        host: DB_HOST,
+        port: DB_PORT,
+        user: DB_USER,
+        password: DB_PASSWORD,
+        database: DB_NAME,
+      };
+
+  // The tests encrypt the connection but do not verify the server
+  // certificate, which is the same thing the site does by default.
+  if (DB_SSL) settings.ssl = { rejectUnauthorized: false };
+  return settings;
+}
+
+async function testDb() {
+  if (testConnection) return testConnection;
+  testConnection = new Client(connectionSettings());
+  await testConnection.connect();
+  return testConnection;
+}
+
+/**
+ * Give the run a clean schema. It is dropped rather than emptied, so the
+ * server also has to build its tables, which is what a fresh deploy does.
+ */
+async function resetTestDatabase() {
+  const connection = await testDb();
+  await connection.query('DROP SCHEMA IF EXISTS ' + testSchema + ' CASCADE');
+  await connection.query('CREATE SCHEMA ' + testSchema);
+  // Everything read back afterwards comes from that schema, not 'public'.
+  await connection.query('SET search_path TO ' + testSchema);
+}
+
+/** Read values straight from the database, to check what was really stored. */
+async function fromDatabase(sql, params = []) {
+  const connection = await testDb();
+  const result = await connection.query(sql, params);
+  return result.rows;
+}
+
+/** Remove the throwaway schema, leaving the project as it was found. */
+async function dropTestSchema() {
+  if (!testConnection) return;
+  try {
+    await testConnection.query('DROP SCHEMA IF EXISTS ' + testSchema + ' CASCADE');
+  } catch {
+    /* nothing useful to do while cleaning up */
+  }
+}
 
 let passed = 0;
 let failed = 0;
@@ -110,8 +203,17 @@ async function waitForServer(timeoutMs = 20000) {
 }
 
 async function run() {
-  fs.rmSync(runDir, { recursive: true, force: true });
-  fs.mkdirSync(runDir, { recursive: true });
+  try {
+    await resetTestDatabase();
+  } catch (error) {
+    console.error('');
+    console.error('Could not prepare the test schema "' + testSchema + '".');
+    console.error('Check that the connection line in .env is right and that the project is awake.');
+    console.error('Driver said: ' + (error && error.message));
+    console.error('');
+    process.exitCode = 1;
+    return;
+  }
 
   const server = spawn(process.execPath, ['server.js'], {
     cwd: root,
@@ -119,8 +221,9 @@ async function run() {
       ...process.env,
       PORT: String(port),
       HOST: '127.0.0.1',
-      DATA_DIR: path.join(runDir, 'data'),
-      UPLOAD_DIR: path.join(runDir, 'uploads'),
+      // The server builds its tables in the throwaway schema.
+      DB_SCHEMA: testSchema,
+      SESSION_SECRET: 'smoke-test-session-secret-0123456789',
       ADMIN_USERNAME: 'organizer',
       ADMIN_PASSWORD: adminPassword,
     },
@@ -163,6 +266,13 @@ async function run() {
     check(
       'config carries the same college rule text as the page',
       config.same_college_rule.includes('must belong to the SAME COLLEGE')
+    );
+    const health = await fetch(base + '/api/health');
+    const healthData = await health.json();
+    check(
+      'health check confirms the database is reachable',
+      health.status === 200 && healthData.ok === true,
+      JSON.stringify(healthData)
     );
 
     const home = await fetch(base + '/');
@@ -383,11 +493,27 @@ async function run() {
         })
       ).status === 401
     );
-    const uploadFiles = fs.readdirSync(path.join(runDir, 'uploads'));
-    check('screenshots are stored on disk', uploadFiles.length > 0, uploadFiles.join(', '));
+    const storedShots = await fromDatabase(
+      'SELECT COUNT(*) AS count FROM registrations WHERE payment_screenshot_data IS NOT NULL'
+    );
     check(
-      'uploaded screenshots are not published as static files',
-      (await fetch(base + '/' + uploadFiles[0])).status === 404
+      'payment screenshots are stored in the database',
+      Number(storedShots[0].count) === 4,
+      String(storedShots[0].count)
+    );
+    const storedSizes = await fromDatabase(
+      'SELECT COUNT(*) AS count FROM registrations WHERE payment_screenshot_size > 0'
+    );
+    check(
+      'stored screenshots keep their size',
+      Number(storedSizes[0].count) === 4,
+      String(storedSizes[0].count)
+    );
+    const storedKeys = await fromDatabase('SELECT COUNT(*) AS count FROM registration_keys');
+    check(
+      'duplicate protection rows are written with the registration',
+      Number(storedKeys[0].count) === 16,
+      String(storedKeys[0].count)
     );
 
     console.log('\nAdmin authentication');
@@ -427,6 +553,10 @@ async function run() {
     const feeCheck = all.data.registrations.find((item) => item.team_name === 'Fee Check XI');
     check('client supplied amount did not change the stored fee', feeCheck && feeCheck.payment_amount === 300);
     check('normalised helper columns are not exposed', feeCheck && feeCheck.team_name_norm === undefined);
+    check(
+      'the screenshot blob is not sent with the registration list',
+      feeCheck && feeCheck.payment_screenshot_data === undefined
+    );
 
     const mobileCheck = all.data.registrations.find((item) => item.team_name === 'Court Kings');
     check(
@@ -465,6 +595,15 @@ async function run() {
     check('screenshot downloads for the signed in admin', shot.status === 200);
     check('screenshot is served as a png', (shot.headers.get('content-type') || '').includes('image/png'));
     check('screenshot is not cached', (shot.headers.get('cache-control') || '').includes('no-store'));
+    const servedBytes = Buffer.from(await shot.arrayBuffer());
+    const uploadedBytes = samplePng();
+    check(
+      'the served screenshot is byte for byte the uploaded file',
+      servedBytes.equals(uploadedBytes),
+      servedBytes.length + ' bytes served, ' + uploadedBytes.length + ' bytes uploaded'
+    );
+    const missingShot = await admin('/api/admin/registrations/999999/screenshot');
+    check('a screenshot that does not exist returns 404', missingShot.status === 404);
 
     console.log('\nAccept and reject');
     const acceptWithoutConfirm = await adminJson('/api/admin/registrations/' + targetId + '/accept', {
@@ -511,6 +650,15 @@ async function run() {
     check('rejection reason is stored', rejected.data.registration.rejection_reason === 'Fake payment screenshot');
     check('rejecting admin is recorded', rejected.data.registration.rejected_by === 'organizer');
     check('rejection time is recorded', Boolean(rejected.data.registration.rejected_at));
+    const freedKeys = await fromDatabase(
+      'SELECT COUNT(*)::int AS count FROM registration_keys WHERE registration_id = $1',
+      [otherTeam.id]
+    );
+    check(
+      'rejecting a team frees its name, emails and player pair',
+      Number(freedKeys[0].count) === 0,
+      String(freedKeys[0].count)
+    );
 
     const rejectedOther = await adminJson('/api/admin/registrations/' + otherTeam.id + '/reject', {
       method: 'POST',
@@ -563,7 +711,11 @@ run()
     failed += 1;
     console.error('\nTest run crashed:', error);
   })
-  .finally(() => {
+  .finally(async () => {
+    await dropTestSchema();
+    if (testConnection) {
+      await testConnection.end().catch(() => {});
+    }
     console.log('\n' + passed + ' checks passed, ' + failed + ' failed.');
     if (failed > 0) process.exitCode = 1;
   });

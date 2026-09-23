@@ -1,11 +1,9 @@
 import crypto from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
 import {
   ADMIN_PASSWORD,
   ADMIN_USERNAME,
-  DATA_DIR,
   SESSION_COOKIE,
+  SESSION_SECRET,
   SESSION_TTL_MS,
 } from './config.js';
 import {
@@ -18,20 +16,33 @@ import {
 
 const SCRYPT_PARAMS = { N: 16384, r: 8, p: 1, keylen: 64 };
 
-const SECRET_FILE = path.join(DATA_DIR, 'session-secret.key');
-
+/**
+ * The key that signs the organizer session cookie.
+ *
+ * SESSION_SECRET wins when it is set. Otherwise a key is derived from the
+ * organizer password, so sessions stay valid across a restart without a key
+ * file on disk, which a host with no persistent disk could not keep anyway.
+ * Changing the organizer password changes the key, and that only means signing
+ * in again.
+ */
 function loadSessionSecret() {
-  if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
-  if (fs.existsSync(SECRET_FILE)) {
-    const stored = fs.readFileSync(SECRET_FILE, 'utf8').trim();
-    if (stored.length >= 32) return stored;
+  if (SESSION_SECRET) {
+    if (SESSION_SECRET.length < 16) {
+      console.warn('[auth] SESSION_SECRET is shorter than 16 characters. Use a longer random value.');
+    }
+    return SESSION_SECRET;
   }
-  const secret = crypto.randomBytes(32).toString('hex');
-  fs.writeFileSync(SECRET_FILE, secret, { mode: 0o600 });
-  return secret;
+
+  if (ADMIN_PASSWORD) {
+    return crypto
+      .scryptSync(ADMIN_PASSWORD + '|' + ADMIN_USERNAME, 'badminton-session-key-v1', 32)
+      .toString('hex');
+  }
+
+  return crypto.randomBytes(32).toString('hex');
 }
 
-const SESSION_SECRET = loadSessionSecret();
+const SESSION_SECRET_KEY = loadSessionSecret();
 
 export function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -88,16 +99,16 @@ function randomPassword() {
  * Any account left over from a previous username is deleted, so an old login
  * stops working the moment the credentials change.
  */
-export function ensureAdminAccount(log = console.log) {
+export async function ensureAdminAccount(log = console.log) {
   if (ADMIN_PASSWORD) {
-    upsertAdmin(ADMIN_USERNAME, hashPassword(ADMIN_PASSWORD));
-    deleteAdminsExcept(ADMIN_USERNAME);
+    await upsertAdmin(ADMIN_USERNAME, hashPassword(ADMIN_PASSWORD));
+    await deleteAdminsExcept(ADMIN_USERNAME);
     return { username: ADMIN_USERNAME, generated: false };
   }
 
-  if (countAdmins() === 0) {
+  if ((await countAdmins()) === 0) {
     const password = randomPassword();
-    upsertAdmin(ADMIN_USERNAME, hashPassword(password));
+    await upsertAdmin(ADMIN_USERNAME, hashPassword(password));
     log('');
     log('==========================================================');
     log(' Organizer dashboard: /admin');
@@ -114,7 +125,7 @@ export function ensureAdminAccount(log = console.log) {
 }
 
 function sign(value) {
-  return crypto.createHmac('sha256', SESSION_SECRET).update(value).digest('base64url');
+  return crypto.createHmac('sha256', SESSION_SECRET_KEY).update(value).digest('base64url');
 }
 
 export function createSessionToken(username, epoch) {
@@ -164,7 +175,7 @@ export function parseCookies(header) {
   return cookies;
 }
 
-export function getSession(req) {
+export async function getSession(req) {
   const cookies = parseCookies(req.headers.cookie);
   const token = cookies[SESSION_COOKIE];
   if (!token) return null;
@@ -174,7 +185,7 @@ export function getSession(req) {
 
   // A signed token is not enough: the account must still exist and the token
   // must belong to the current session epoch (bumped on every sign out).
-  const admin = findAdminByUsername(payload.username);
+  const admin = await findAdminByUsername(payload.username);
   if (!admin) return null;
   if (Number(admin.session_epoch || 0) !== payload.epoch) return null;
 
@@ -182,10 +193,10 @@ export function getSession(req) {
 }
 
 /** End the signed in session on the server as well as in the browser. */
-export function revokeSession(req) {
-  const session = getSession(req);
+export async function revokeSession(req) {
+  const session = await getSession(req);
   if (!session) return;
-  bumpAdminSessionEpoch(session.username);
+  await bumpAdminSessionEpoch(session.username);
 }
 
 function cookieOptions(req) {
@@ -211,8 +222,15 @@ export function clearSessionCookie(req, res) {
 }
 
 /** Express middleware: reject unauthenticated requests to admin APIs. */
-export function requireAdmin(req, res, next) {
-  const session = getSession(req);
+export async function requireAdmin(req, res, next) {
+  let session;
+  try {
+    session = await getSession(req);
+  } catch (error) {
+    next(error);
+    return;
+  }
+
   if (!session) {
     res.status(401).json({ ok: false, message: 'Sign in to the admin dashboard first.' });
     return;

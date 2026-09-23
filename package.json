@@ -11,14 +11,19 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "test": "node tools/smoke-test.mjs",
+    "test:local": "node tools/test-local.mjs",
+    "db:check": "node tools/check-db.mjs",
     "icons": "node tools/make-icons.mjs",
     "logo": "node tools/make-logo.mjs"
   },
   "dependencies": {
     "express": "^5.2.1",
-    "multer": "^2.4.0"
+    "multer": "^2.4.0",
+    "pg": "^8.23.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite-socket": "^0.2.11",
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource-variable/space-grotesk": "^5.3.0",
     "jpeg-js": "^0.4.4"
